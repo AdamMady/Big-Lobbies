@@ -22,7 +22,7 @@ public class Plugin : BasePlugin
         MaxConnections = Config.Bind(
             "General",
             "MaxPlayerCount",
-            100,
+            40,
             "Maximum number of players allowed in the lobby."
         );
 
