@@ -4,6 +4,7 @@ using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
+using BepInEx.Configuration;
 
 namespace Bigger_Walk;
 
@@ -12,11 +13,20 @@ public class Plugin : BasePlugin
 {
     internal static new ManualLogSource Log;
     private Harmony harmony;
-    public static int MAX_CONNECTIONS = 100;
+    internal static ConfigEntry<int> MaxConnections;
 
     public override void Load()
     {
         Log = base.Log;
+        
+        MaxConnections = Config.Bind(
+            "General",
+            "MaxPlayerCount",
+            100,
+            "Maximum number of players allowed in the lobby."
+        );
+
+        
         harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         HarmonyPatches();
 

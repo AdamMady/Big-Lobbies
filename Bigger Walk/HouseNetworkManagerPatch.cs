@@ -31,7 +31,7 @@ public static class HouseNetworkManagerPatch
         }
 
         var previous = networkManager.maxConnections;
-        networkManager.maxConnections = Plugin.MAX_CONNECTIONS;
+        networkManager.maxConnections = Plugin.MaxConnections.Value;
         Plugin.Log.LogInfo("Set maxConnections " + previous + " to " + networkManager.maxConnections
         );
     }
