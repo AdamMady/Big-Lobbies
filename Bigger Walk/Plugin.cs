@@ -1,6 +1,9 @@
-﻿using BepInEx;
+﻿using System;
+using System.Reflection;
+using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
+using HarmonyLib;
 
 namespace Bigger_Walk;
 
@@ -8,11 +11,68 @@ namespace Bigger_Walk;
 public class Plugin : BasePlugin
 {
     internal static new ManualLogSource Log;
+    private Harmony harmony;
+    public static int MAX_CONNECTIONS = 100;
 
     public override void Load()
     {
-        // Plugin startup logic
         Log = base.Log;
-        Log.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
+        harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
+        HarmonyPatches();
+
+        Log.LogInfo("Bigger Walk Loaded");
+    }
+
+    private void HarmonyPatches()
+    {
+        TryPatch(
+            AccessTools.Method(typeof(HouseNetworkManager), nameof(HouseNetworkManager.OnStartServer), Type.EmptyTypes),
+            AccessTools.Method(typeof(HouseNetworkManagerPatch), nameof(HouseNetworkManagerPatch.OnStartServerPrefix)),
+            null,
+            "HouseNetworkManager.OnStartServer"
+        );
+
+        TryPatch(
+            AccessTools.Method(typeof(HouseNetworkManager), nameof(HouseNetworkManager.OnStartHost), Type.EmptyTypes),
+            AccessTools.Method(typeof(HouseNetworkManagerPatch), nameof(HouseNetworkManagerPatch.OnStartHostPrefix)),
+            null,
+            "HouseNetworkManager.OnStartHost"
+        );
+
+        TryPatch(
+            AccessTools.Method(typeof(HouseNetworkManager), nameof(HouseNetworkManager.CreateHostEosLobbyAsync), Type.EmptyTypes),
+            AccessTools.Method(typeof(HouseNetworkManagerPatch), nameof(HouseNetworkManagerPatch.CreateHostEosLobbyAsyncPrefix)),
+            null,
+            "HouseNetworkManager.CreateHostEosLobbyAsync"
+        );
+    }
+
+    private void TryPatch(MethodInfo original, MethodInfo prefix, MethodInfo postfix, string patchName)
+    {
+        if (original == null)
+        {
+            Log.LogError("Failed to find patch target: " + patchName);
+            return;
+        }
+
+        try
+        {
+            harmony.Patch(original, 
+                prefix == null ? null : new HarmonyMethod(prefix), 
+                postfix == null ? null : new HarmonyMethod(postfix)
+            );
+
+            var patchInfo = Harmony.GetPatchInfo(original);
+            var prefixCount = patchInfo?.Prefixes?.Count ?? 0;
+            var postfixCount = patchInfo?.Postfixes?.Count ?? 0;
+
+            Log.LogInfo(
+                "Installed patch for " + patchName + " prefixes=" + prefixCount + " postfixes=" + postfixCount
+            );
+        }
+        catch (Exception ex)
+        {
+            Log.LogError("Failed to apply the patch for " + patchName + ": " + ex);
+        }
     }
 }
