@@ -55,6 +55,13 @@ public class Plugin : BasePlugin
             null,
             "HouseNetworkManager.CreateHostEosLobbyAsync"
         );
+
+        TryPatch(
+            AccessTools.Method(typeof(EpicTransport.Server), "CreateServer"),
+            null,
+            AccessTools.Method(typeof(HouseNetworkManagerPatch), nameof(HouseNetworkManagerPatch.CreateEosServerPostfix)),
+            "EpicTransport.Server.CreateServer"
+        );
     }
 
     private void TryPatch(MethodInfo original, MethodInfo prefix, MethodInfo postfix, string patchName)

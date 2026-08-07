@@ -29,6 +29,10 @@
             <HintPath>..\lib\Mirror.dll</HintPath>
         </Reference>
 
+        <Reference Include="Mirror.Transports">
+            <HintPath>..\lib\Mirror.Transports.dll</HintPath>
+        </Reference>
+
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>..\lib\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
