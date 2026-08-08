@@ -5,6 +5,8 @@ using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 using BepInEx.Configuration;
+using Mirror;
+using Steamworks;
 
 namespace Bigger_Walk;
 
@@ -14,7 +16,6 @@ public class Plugin : BasePlugin
     internal static new ManualLogSource Log;
     private Harmony harmony;
     internal static ConfigEntry<int> MaxConnections;
-
     public override void Load()
     {
         Log = base.Log;
@@ -26,7 +27,6 @@ public class Plugin : BasePlugin
             "Maximum number of players allowed in the lobby."
         );
 
-        
         harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         HarmonyPatches();
 
@@ -35,6 +35,27 @@ public class Plugin : BasePlugin
 
     private void HarmonyPatches()
     {
+        TryPatch(
+            AccessTools.Method(typeof(NetworkManager), nameof(NetworkManager.StartServer), Type.EmptyTypes),
+            AccessTools.Method(typeof(NetworkManagerPatch), nameof(NetworkManagerPatch.StartServerPrefix)),
+            null,
+            "NetworkManager.StartServer"
+        );
+
+        TryPatch(
+            AccessTools.Method(typeof(NetworkManager), nameof(NetworkManager.StartHost), Type.EmptyTypes),
+            AccessTools.Method(typeof(NetworkManagerPatch), nameof(NetworkManagerPatch.StartHostPrefix)),
+            null,
+            "NetworkManager.StartHost"
+        );
+
+        TryPatch(
+            AccessTools.Method(typeof(NetworkServer), nameof(NetworkServer.Listen), new[] { typeof(int) }),
+            AccessTools.Method(typeof(NetworkServerPatch), nameof(NetworkServerPatch.ListenPrefix)),
+            null,
+            "NetworkServer.Listen"
+        );
+
         TryPatch(
             AccessTools.Method(typeof(HouseNetworkManager), nameof(HouseNetworkManager.OnStartServer), Type.EmptyTypes),
             AccessTools.Method(typeof(HouseNetworkManagerPatch), nameof(HouseNetworkManagerPatch.OnStartServerPrefix)),
@@ -57,11 +78,68 @@ public class Plugin : BasePlugin
         );
 
         TryPatch(
-            AccessTools.Method(typeof(EpicTransport.Server), "CreateServer"),
+            AccessTools.Method(typeof(EOSLobby), nameof(EOSLobby.CreateLobby)),
+            AccessTools.Method(typeof(EosLobbyPatch), nameof(EosLobbyPatch.CreateLobbyPrefix)),
             null,
-            AccessTools.Method(typeof(HouseNetworkManagerPatch), nameof(HouseNetworkManagerPatch.CreateEosServerPostfix)),
+            "EOSLobby.CreateLobby"
+        );
+
+        TryPatch(
+            MethodByTypeName("EOSLobbyManager", "FeedUpdateAttributes"),
+            AccessTools.Method(typeof(EosLobbyManagerPatch), nameof(EosLobbyManagerPatch.FeedUpdateAttributesPrefix)),
+            null,
+            "EOSLobbyManager.FeedUpdateAttributes"
+        );
+
+        TryPatch(
+            AccessTools.Method(typeof(SteamMatchmaking), nameof(SteamMatchmaking.CreateLobby)),
+            AccessTools.Method(typeof(SteamMatchmakingPatch), nameof(SteamMatchmakingPatch.CreateLobbyPrefix)),
+            null,
+            "SteamMatchmaking.CreateLobby"
+        );
+
+        TryPatch(
+            AccessTools.Method(typeof(SteamMatchmaking), nameof(SteamMatchmaking.SetLobbyMemberLimit)),
+            AccessTools.Method(typeof(SteamMatchmakingPatch), nameof(SteamMatchmakingPatch.SetLobbyMemberLimitPrefix)),
+            null,
+            "SteamMatchmaking.SetLobbyMemberLimit"
+        );
+
+        TryPatch(
+            AccessTools.Method(typeof(EpicTransport.Server), nameof(EpicTransport.Server.CreateServer)),
+            AccessTools.Method(typeof(EpicTransportServerPatch), nameof(EpicTransportServerPatch.CreateServerPrefix)),
+            AccessTools.Method(typeof(EpicTransportServerPatch), nameof(EpicTransportServerPatch.CreateServerPostfix)),
             "EpicTransport.Server.CreateServer"
         );
+    }
+
+    private static MethodInfo MethodByTypeName(string typeName, string methodName)
+    {
+        var type = ResolveKnownType(typeName);
+        return type == null ? null : AccessTools.Method(type, methodName);
+    }
+
+    internal static Type ResolveKnownType(string typeName)
+    {
+        var type = typeof(EpicTransport.Server).Assembly.GetType(typeName, false, false) ??
+                   typeof(HouseNetworkManager).Assembly.GetType(typeName, false, false) ??
+                   typeof(NetworkManager).Assembly.GetType(typeName, false, false) ??
+                   Type.GetType(typeName, false, false);
+        if (type != null)
+        {
+            return type;
+        }
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            type = assembly.GetType(typeName, false, false);
+            if (type != null)
+            {
+                return type;
+            }
+        }
+
+        return null;
     }
 
     private void TryPatch(MethodInfo original, MethodInfo prefix, MethodInfo postfix, string patchName)
@@ -77,14 +155,6 @@ public class Plugin : BasePlugin
             harmony.Patch(original, 
                 prefix == null ? null : new HarmonyMethod(prefix), 
                 postfix == null ? null : new HarmonyMethod(postfix)
-            );
-
-            var patchInfo = Harmony.GetPatchInfo(original);
-            var prefixCount = patchInfo?.Prefixes?.Count ?? 0;
-            var postfixCount = patchInfo?.Postfixes?.Count ?? 0;
-
-            Log.LogInfo(
-                "Installed patch for " + patchName + " prefixes=" + prefixCount + " postfixes=" + postfixCount
             );
         }
         catch (Exception ex)

@@ -33,6 +33,10 @@
             <HintPath>..\lib\Mirror.Transports.dll</HintPath>
         </Reference>
 
+        <Reference Include="com.rlabrecque.steamworks.net">
+            <HintPath>..\lib\com.rlabrecque.steamworks.net.dll</HintPath>
+        </Reference>
+
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>..\lib\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
