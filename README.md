@@ -74,7 +74,7 @@
 
 
 
-#### Step 2: Copy the BepInEx folder included with this mod into the game directory. If updating, replace your previous BiggerWalkAndTalk.dll. Disable Bigger Walk and the old event version so only one lobby-capacity mod is loaded.
+#### Step 2: Copy the BepInEx folder included with this mod into the game directory. The DLL is BepInEx/plugins/BigLobbies/BigLobbies.dll. If updating from BiggerWalkAndTalk.dll, remove that old DLL first. Disable Bigger Walk and the old event version so only one lobby-capacity mod is loaded.
 
 
 

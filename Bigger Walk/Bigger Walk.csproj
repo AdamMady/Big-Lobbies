@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
-        <AssemblyName>BiggerWalkAndTalk</AssemblyName>
+        <AssemblyName>BigLobbies</AssemblyName>
         <Product>Big Lobbies</Product>
         <Authors>AdamMady</Authors>
         <Version>1.0.0</Version>
