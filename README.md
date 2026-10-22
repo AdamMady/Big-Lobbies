@@ -50,7 +50,7 @@
 
 
 
-#### Hearing Distance: 24 metres by default, Can improve network traffic 
+#### Hearing Distance: 30 metres by default, Can improve network traffic 
 
 
 
@@ -98,7 +98,7 @@
 
 
 
-#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/2a2c652c8bcd0d65904010b63fab39a8fe8c5c2d
+#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/b6aa5d5746f9d292a601dafa253e0b0a59e6cb55
 
 
 
