@@ -44,7 +44,7 @@ public class Plugin : BasePlugin
         UpdateCapHz = Config.Bind("Wi-Fi Optimization", "Update Cap Hz", "Normal",
             new ConfigDescription("Normal uses the game's original rate. Lower caps reduce upload traffic but make movement less smooth. Never exceeds the game's original rate. Voice packet rate is unchanged. Applies live.",
                 new AcceptableValueList<string>("5 Hz", "10 Hz", "15 Hz", "20 Hz", "25 Hz", "30 Hz", "Normal"), SettingTags("Wi-Fi Optimization", 30, 10, 5d)));
-        HearingDistance = Config.Bind("Wi-Fi Optimization", "Hearing Distance", 24f,
+        HearingDistance = Config.Bind("Wi-Fi Optimization", "Hearing Distance", 30f,
             new ConfigDescription("Ordinary guest voice relay radius in metres. Does not amplify voices or change native host hearing. Active megaphones, walkie-talkies and radio stations keep their special routes. Applies live.", new AcceptableValueRange<float>(1f, 30f), SettingTags("Wi-Fi Optimization", 30, 20, 1d)));
         Config.SettingChanged += OnSettingChanged;
         RegisterSettingsMetadata();
