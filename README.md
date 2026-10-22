@@ -30,6 +30,10 @@
 
 
 
+#### Can (in theory) reduce network traffic even in lobbies with less than 12 players!
+
+
+
 ## Settings:
 
 
@@ -46,11 +50,11 @@
 
 
 
-#### Update Cap Hz: Normal by default. Movement will look less smooth the lower it is, Can improve network traffic.
+#### Update Cap Hz: Normal by default. Movement will look less smooth the lower it is, Can improve network traffic and ping.
 
 
 
-#### Hearing Distance: 30 metres by default, Can improve network traffic 
+#### Hearing Distance: 30 metres by default, Can improve network traffic and ping.
 
 
 
@@ -74,7 +78,7 @@
 
 
 
-#### Step 2: Copy the BepInEx folder included with this mod into the game directory. The DLL is BepInEx/plugins/BigLobbies/BigLobbies.dll. If updating from BiggerWalkAndTalk.dll, remove that old DLL first. Disable Bigger Walk and the old event version so only one lobby-capacity mod is loaded.
+#### Step 2: Copy the BepInEx folder included with this mod into the game directory. The DLL is BepInEx/plugins/BigLobbies.dll. If updating from BiggerWalkAndTalk.dll, remove that old DLL first. Disable Bigger Walk and the old event version so only one lobby-capacity mod is loaded.
 
 
 
