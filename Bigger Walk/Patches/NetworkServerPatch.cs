@@ -13,6 +13,7 @@ public static class NetworkServerPatch
         try
         {
             NetworkServer.maxConnections = maxConnections;
+            Plugin.Log.LogInfo("[CAPACITY] Mirror Listen player limit=" + maxConnections);
         }
         catch (Exception ex)
         {

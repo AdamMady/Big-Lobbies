@@ -2,8 +2,9 @@
 
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
-        <AssemblyName>Bigger_Walk</AssemblyName>
-        <Product>Bigger Walk</Product>
+        <AssemblyName>BiggerWalkAndTalk</AssemblyName>
+        <Product>Big Lobbies</Product>
+        <Authors>AdamMady</Authors>
         <Version>1.0.0</Version>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>latest</LangVersion>
@@ -13,40 +14,60 @@
             https://nuget.samboy.dev/v3/index.json
         </RestoreAdditionalProjectSources>
         <RootNamespace>Bigger_Walk</RootNamespace>
+        <GameDir Condition="'$(GameDir)' == ''">$(BIG_WALK_GAME_DIR)</GameDir>
     </PropertyGroup>
 
     <ItemGroup>
+        <Reference Include="com.Epic.OnlineServices"><HintPath>$(GameDir)\BepInEx\interop\com.Epic.OnlineServices.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="com.playeveryware.eos.core"><HintPath>$(GameDir)\BepInEx\interop\com.playeveryware.eos.core.dll</HintPath><Private>false</Private></Reference>
         <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.*" IncludeAssets="compile"/>
         <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*"/>
     </ItemGroup>
 
     <ItemGroup>
+        <Reference Include="DissonanceVoip"><HintPath>$(GameDir)\BepInEx\interop\DissonanceVoip.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="UnityEngine.AudioModule"><HintPath>$(GameDir)\BepInEx\interop\UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="Il2CppSystem"><HintPath>$(GameDir)\BepInEx\interop\Il2CppSystem.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="Il2CppSystem.Core"><HintPath>$(GameDir)\BepInEx\interop\Il2CppSystem.Core.dll</HintPath><Private>false</Private></Reference>
         <Reference Include="Assembly-CSharp">
-            <HintPath>..\lib\Assembly-CSharp.dll</HintPath>
+            <HintPath>$(GameDir)\BepInEx\interop\Assembly-CSharp.dll</HintPath>
+            <Aliases>global,GameInterop</Aliases>
         </Reference>
 
         <Reference Include="Mirror">
-            <HintPath>..\lib\Mirror.dll</HintPath>
+            <HintPath>$(GameDir)\BepInEx\interop\Mirror.dll</HintPath>
         </Reference>
 
         <Reference Include="Mirror.Transports">
-            <HintPath>..\lib\Mirror.Transports.dll</HintPath>
+            <HintPath>$(GameDir)\BepInEx\interop\Mirror.Transports.dll</HintPath>
         </Reference>
 
         <Reference Include="com.rlabrecque.steamworks.net">
-            <HintPath>..\lib\com.rlabrecque.steamworks.net.dll</HintPath>
+            <HintPath>$(GameDir)\BepInEx\interop\com.rlabrecque.steamworks.net.dll</HintPath>
         </Reference>
 
         <Reference Include="UnityEngine.CoreModule">
-            <HintPath>..\lib\UnityEngine.CoreModule.dll</HintPath>
+            <HintPath>$(GameDir)\BepInEx\interop\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
 
         <Reference Include="UniTask">
-            <HintPath>..\lib\UniTask.dll</HintPath>
+            <HintPath>$(GameDir)\BepInEx\interop\UniTask.dll</HintPath>
         </Reference>
 
         <Reference Include="Il2Cppmscorlib">
-            <HintPath>..\lib\Il2Cppmscorlib.dll</HintPath>
+            <HintPath>$(GameDir)\BepInEx\interop\Il2Cppmscorlib.dll</HintPath>
+        </Reference>
+
+        <Reference Include="AudioSystem">
+            <HintPath>$(GameDir)\BepInEx\interop\AudioSystem.dll</HintPath>
+        </Reference>
+
+        <Reference Include="UnityEngine.IMGUIModule">
+            <HintPath>$(GameDir)\BepInEx\interop\UnityEngine.IMGUIModule.dll</HintPath>
+        </Reference>
+
+        <Reference Include="UnityEngine.InputLegacyModule">
+            <HintPath>$(GameDir)\BepInEx\interop\UnityEngine.InputLegacyModule.dll</HintPath>
         </Reference>
     </ItemGroup>
 
