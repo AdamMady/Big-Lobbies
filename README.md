@@ -30,7 +30,7 @@
 
 
 
-#### Can (in theory) reduce network traffic even in lobbies with less than 12 players!
+#### Can (in theory) reduce network traffic even in lobbies with less than 13 players!
 
 
 
