@@ -14,15 +14,15 @@
 
 
 
+#### Fixes the main problem with the original "Bigger Walk" mod by adding voice support past 12 players!
+
+
+
 #### Host bigger lobbies! Defaults to 50 players, adjustable up to 100 through Mod Settings.
 
 
 
-#### Voice support beyond the normal player limit! Each player gets voice slots for nearby speakers instead of spending them on people too far away to hear.
-
-
-
-#### Supports people actively using megaphones, walkie-talkies and radio stations!
+#### Supports megaphones, walkie-talkies and radio stations!
 
 
 
@@ -42,7 +42,7 @@
 
 
 
-#### QuietThreshold: 0.004 by default. Stops player from being heard until they go above this volume.
+#### QuietThreshold: 0.004 by default. Quiet speakers lose priority only when a listener's voice slots are full.
 
 
 
@@ -58,11 +58,11 @@
 
 
 
-#### Unmodded clients still have a limited number of voice slots. This mod reallocates those slots; it does not let everyone in a huge crowd speak simultaneously. Instead it splits closer players into smaller talking channels.
+#### Unmodded clients still have a limited number of people that they can hear. This mod reuses those slots based on item, volume, distance, so on but it does not let everyone in a huge crowd speak simultaneously. Each listener gets voice slots assigned to speakers they can hear.
 
 
 
-#### Bigger lobbies need more host upload bandwidth and processing power.
+#### Bigger lobbies need more host upload bandwidth and processing power. Expect the game to crash at any moment, not only on your side, but even sometimes on other people's devices, more optimization will happen as feedback is given, You can adjust values for network optimization in the mod settings menu.
 
 
 
@@ -94,12 +94,16 @@
 
 
 
-#### Big Lobbies source and fork: https://github.com/AdamMady/Big-Lobbies
+#### Big Lobbies source: https://github.com/AdamMady/Big-Lobbies
 
 
 
-#### Standalone voice routing and live settings by AdamMady. This is a separate modified version, not the original Bigger Walk release. Standalone revision: October 22, 2026.
+#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/2a2c652c8bcd0d65904010b63fab39a8fe8c5c2d
 
 
 
-#### Licensed under GNU GPL v3. See LICENSE and NOTICE. If you distribute this DLL, provide its corresponding modified source and build files under the same license. A GitHub fork is not required.
+#### Voice routing and live settings by AdamMady. This is a separate modified version, not the original Bigger Walk release.
+
+
+
+#### Licensed under GNU GPL v3. See LICENSE and NOTICE. If you distribute this DLL, provide its corresponding modified source and build files under the same license.
