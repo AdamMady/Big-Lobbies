@@ -50,7 +50,11 @@
 
 
 
-#### Voice Quality: 100% (Normal) by default, targeting 17 kbps. Presets are 100%, 85%, 70%, 55% and 40%. Lower values recompress guest voices on the host, reducing outgoing voice data at the cost of quality and extra CPU work. 100% preserves original guest packets. FEC settings and audio frame duration are unchanged.
+#### Voice Quality: 100% (Normal) by default, targeting 17 kbps. Presets are 100%, 85%, 70%, 55% and 40%. Lower values recompress guest voices on the host using extra CPU. 100% preserves original guest packets. FEC settings and audio frame duration are unchanged.
+
+
+
+#### Host Microphone Quality: A separate live 1-100% slider under Voice for your own transmitted microphone. 100% targets 17 kbps; it is independent of guest Voice Quality.
 
 
 
@@ -106,7 +110,7 @@
 
 
 
-#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/415c4c3daa9614987aadc90df6d36b63055017c1
+#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/f834290d571c4d77dd556de103b0d800e486068c
 
 
 
