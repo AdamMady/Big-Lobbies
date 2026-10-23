@@ -107,6 +107,7 @@ internal static class VoiceRoster
 
     static void ClearState(bool clearMute)
     {
+        RelayQuality.Reset();
         // Only release memberships created here, never the game's original room memberships.
         if (comms != null)
             foreach (var membership in joinedRooms.Values)
@@ -575,7 +576,7 @@ internal static class VoiceRoster
         if (local ? !source.Host : connection == null || source.Connection == null || source.Connection.Pointer != connection.Pointer) return true;
         if (IsMuted(source)) return true;
         receivedVoicePackets++;
-        reader.ReadVoicePacketHeader2(out _, out _, out var channelCount);
+        reader.ReadVoicePacketHeader2(out var options, out var sequence, out var channelCount);
         if (channelCount > 128) return true;
         var recipients = new HashSet<ushort>();
         for (int i = 0; i < channelCount; i++)
@@ -589,24 +590,60 @@ internal static class VoiceRoster
             }
         }
         // Validate the encoded payload too before replacing the native relay path.
-        reader.ReadByteSegment();
+        var audio = reader.ReadByteSegment();
         float now = Time.unscaledTime;
         var copy = new byte[packet.Count];
         var packetArray = packet.Array;
         Marshal.Copy(IntPtr.Add(packetArray.Pointer, 4 * IntPtr.Size + packet.Offset), copy, 0, copy.Length);
         GC.KeepAlive(packetArray);
-        while (source.Onset.Count >= 12) source.Onset.Dequeue();
-        source.Onset.Enqueue((now, copy));
         // Decode all sources for activity and cached radio samples, not global hearing.
         // Native playback applies its own full audio processing and distance attenuation.
         if (hostId.HasValue && sender != hostId.Value && peers.TryGetValue(hostId.Value, out var hostPeer)) Send(hostPeer, packet, false);
+        if (!local && RelayQuality.Recompress && source.Info.CodecSettings.Codec == Dissonance.Audio.Codecs.Codec.Opus)
+        {
+            var job = new RelayQuality.Job { Source = sender, Name = source.Name, Connection = source.Connection?.Pointer ?? IntPtr.Zero,
+                Session = session, Data = copy, AudioOffset = audio.Offset - packet.Offset, AudioLength = audio.Count,
+                Sequence = sequence, ChannelSession = options.ChannelSession, Rate = source.Info.CodecSettings.SampleRate,
+                Samples = checked((int)source.Info.CodecSettings.FrameSize), Recipients = recipients.ToArray(), At = now,
+                Fec = Dissonance.Config.VoiceSettings.Instance.ForwardErrorCorrection, Loss = comms?.PacketLoss ?? 0f };
+            if (RelayQuality.Submit(job)) return true;
+        }
+        RelayToGuests(source, recipients, copy, now, packet);
+        return true;
+    }
+
+    static void RelayToGuests(Peer source, IEnumerable<ushort> recipients, byte[] copy, float now, Segment packet = null)
+    {
+        while (source.Onset.Count >= 12) source.Onset.Dequeue();
+        source.Onset.Enqueue((now, copy));
+        packet ??= new Segment(new Il2CppStructArray<byte>(copy));
         foreach (var id in recipients)
         {
-            if (id == sender || hostId == id || !peers.TryGetValue(id, out var listener) || !listener.Roster.TryGetValue(sender, out var ready) || !Audible(source, listener)) continue;
+            if (id == source.Id || hostId == id || !peers.TryGetValue(id, out var listener) || !listener.Roster.TryGetValue(source.Id, out var ready) || !Audible(source, listener)) continue;
             if (now < ready) QueueOnset(listener, source, copy, ready);
             else Send(listener, packet, false);
         }
-        return true;
+    }
+
+    internal static void FinishQuality(RelayQuality.Job job)
+    {
+        if (!Enabled || session != job.Session || Time.unscaledTime - job.At > .2f ||
+            !peers.TryGetValue(job.Source, out var source) || source.Name != job.Name ||
+            (source.Connection?.Pointer ?? IntPtr.Zero) != job.Connection || IsMuted(source)) return;
+        RelayToGuests(source, job.Recipients, job.Data, Time.unscaledTime);
+    }
+
+    internal static void ResetGuestQuality()
+    {
+        delayed.Clear();
+        foreach (var source in peers.Values) source.Onset.Clear();
+        foreach (var listener in peers.Values)
+        {
+            if (listener.Host) continue;
+            foreach (var id in listener.Roster.Keys.ToArray())
+                if (id != hostId) { SendRemove(listener, id); listener.Roster.Remove(id); }
+        }
+        nextRefresh = 0;
     }
 
     internal static bool BeforeUse(RadioVoiceAssigner radio, PeckContext context)

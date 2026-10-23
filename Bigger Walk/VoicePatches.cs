@@ -27,6 +27,7 @@ internal static class VoicePatches
             Patch(typeof(PlayerVoicePlaybackControl), "OnDisable", nameof(PlaybackDisabling), nameof(PlaybackDisabled));
             Patch(typeof(GlobalAudioEffects), "Update", null, nameof(AudioEffectsUpdated));
             Patch(typeof(RadioVoiceAssigner), "Peck", nameof(RadioUse), nameof(RadioUsed));
+            Patch(typeof(Dissonance.Audio.Codecs.Opus.OpusEncoder), "Encode", nameof(MicrophoneEncoding));
             ClassInjector.RegisterTypeInIl2Cpp<VoicePump>();
             Ready = true;
         }
@@ -72,6 +73,7 @@ internal static class VoicePatches
         catch (Exception error) { VoiceRoster.Report("server update", error); }
     }
     static void Disconnect() => VoiceRoster.Reset();
+    static void MicrophoneEncoding(Dissonance.Audio.Codecs.Opus.OpusEncoder __instance) => RelayQuality.ConfigureMicrophone(__instance);
     static bool TakeCue(PlayerVoicePlaybackControl __instance, ref bool __result)
     {
         if (!HostPlayback.TryTake(__instance)) return true;
@@ -122,7 +124,7 @@ public sealed class VoicePump : MonoBehaviour
     public VoicePump(IntPtr pointer) : base(pointer) { }
     public void Update()
     {
-        try { Plugin.ApplyPendingSettings(); MaxConnectionsPatch.ApplyLive(); EventLoad.Tick(); VoiceRoster.Tick(); VoiceRoster.Flush(); }
+        try { RelayQuality.Tick(); Plugin.ApplyPendingSettings(); MaxConnectionsPatch.ApplyLive(); EventLoad.Tick(); VoiceRoster.Tick(); VoiceRoster.Flush(); }
         catch (Exception error) { VoiceRoster.Report("voice pump", error); }
     }
 }

@@ -20,6 +20,8 @@ public class Plugin : BasePlugin
     private Harmony harmony;
     internal static ConfigEntry<int> MaxConnections;
     internal static ConfigEntry<float> QuietThreshold;
+    internal static ConfigEntry<string> VoiceQuality;
+    internal static int VoiceBitrate => VoiceQuality.Value switch { "Very Low" => 6000, "Low" => 10000, "High" => 24000, "Very High" => 32000, _ => 17000 };
     internal static ConfigEntry<string> UpdateCapHz;
     internal static int UpdateCapValue => int.TryParse(UpdateCapHz.Value.Replace(" Hz", ""), out var value) ? value : 0;
     internal static ConfigEntry<float> HearingDistance;
@@ -41,11 +43,14 @@ public class Plugin : BasePlugin
         catch (Exception ex) { Log.LogError("[CAPACITY] EOS SDK hook installation failed: " + ex); }
         QuietThreshold = Config.Bind("Voice", "QuietThreshold", .004f,
             new ConfigDescription("Decoded amplitude below which an ordinary speaker loses priority ONLY when a listener's voice slots are full.", new AcceptableValueRange<float>(.0001f, .05f), SettingTags("Voice", 20, 10, .0001d)));
+        VoiceQuality = Config.Bind("Wi-Fi Optimization", "Voice Quality", "Medium",
+            new ConfigDescription("Very Low: 6 kbps; Low: 10; Medium: 17; High: 24; Very High: 32. Changes the host microphone bitrate. Very Low/Low also recompress guest voices before relaying, using extra host CPU. Medium and above preserve guest packets; higher settings cannot improve a guest's original recording. Frame duration and FEC settings are unchanged.",
+                new AcceptableValueList<string>("Very Low", "Low", "Medium", "High", "Very High"), SettingTags("Wi-Fi Optimization", 30, 10, 1d)));
         UpdateCapHz = Config.Bind("Wi-Fi Optimization", "Update Cap Hz", "Normal",
             new ConfigDescription("Normal uses the game's original rate. Lower caps reduce upload traffic but make movement less smooth. Never exceeds the game's original rate. Voice packet rate is unchanged. Applies live.",
-                new AcceptableValueList<string>("5 Hz", "10 Hz", "15 Hz", "20 Hz", "25 Hz", "30 Hz", "Normal"), SettingTags("Wi-Fi Optimization", 30, 10, 5d)));
+                new AcceptableValueList<string>("5 Hz", "10 Hz", "15 Hz", "20 Hz", "25 Hz", "30 Hz", "Normal"), SettingTags("Wi-Fi Optimization", 30, 20, 5d)));
         HearingDistance = Config.Bind("Wi-Fi Optimization", "Hearing Distance", 30f,
-            new ConfigDescription("Ordinary guest voice relay radius in metres. Does not amplify voices or change native host hearing. Active megaphones, walkie-talkies and radio stations keep their special routes. Applies live.", new AcceptableValueRange<float>(1f, 30f), SettingTags("Wi-Fi Optimization", 30, 20, 1d)));
+            new ConfigDescription("Ordinary guest voice relay radius in metres. Does not amplify voices or change native host hearing. Active megaphones, walkie-talkies and radio stations keep their special routes. Applies live.", new AcceptableValueRange<float>(1f, 30f), SettingTags("Wi-Fi Optimization", 30, 30, 1d)));
         Config.SettingChanged += OnSettingChanged;
         RegisterSettingsMetadata();
         VoicePatches.Install();
