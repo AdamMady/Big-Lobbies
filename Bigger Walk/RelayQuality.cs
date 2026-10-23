@@ -23,47 +23,76 @@ internal static class RelayQuality
         internal int AudioOffset, AudioLength, Rate, Samples;
         internal ushort[] Recipients;
         internal float At, Loss;
-        internal bool Fec;
+        internal bool Fec, PreviewHost, Reencoded;
+        internal int OutputAudioLength;
         internal long Submitted;
     }
     static Worker worker;
     static int applied, microphoneBitrate = 17000;
     static volatile bool hosting;
     static bool unavailable;
+    static bool appliedPreview;
     static float nextWarning;
-    internal static bool Recompress => hosting && applied < 17000 && !unavailable;
+    static float nextStatistics;
+    static long inputBytes, outputBytes;
+    static int reencodedFrames, fallbackFrames;
+    internal static bool Recompress => hosting && worker != null && !unavailable;
+    internal static bool HostPreview => appliedPreview;
 
     internal static void Tick()
     {
         hosting = VoiceRoster.Enabled;
-        Volatile.Write(ref microphoneBitrate, Plugin.VoiceBitrate);
+        Volatile.Write(ref microphoneBitrate, Plugin.HostVoiceBitrate);
         ApplyMicrophone();
         int desired = hosting ? Plugin.VoiceBitrate : 0;
-        if (desired != applied)
+        bool preview = hosting && Plugin.CompressHostListening && desired < 17000 && !unavailable;
+        if (desired != applied || preview != appliedPreview)
         {
-            worker?.Stop(); worker = null; unavailable = false;
-            bool resetGuests = applied != 0 && desired != 0 && (applied < 17000 || desired < 17000);
-            applied = desired;
-            if (resetGuests) VoiceRoster.ResetGuestQuality();
-            if (desired > 0 && desired < 17000)
+            bool hadCompression = worker != null;
+            bool wasPreview = appliedPreview;
+            if (worker != null && desired > 0 && desired < 17000) worker.SetBitrate(desired);
+            else
             {
-                try
+                worker?.Stop(); worker = null; unavailable = false;
+                if (desired > 0 && desired < 17000)
                 {
-                    Native.Load(Path.Combine(Application.dataPath, "Plugins", "x86_64", "opus.dll"));
-                    worker = new Worker(desired);
-                }
-                catch (Exception ex)
-                {
-                    unavailable = true;
-                    Plugin.Log.LogWarning("[VOICE QUALITY] Guest recompression unavailable; preserving original packets: " + ex.Message);
+                    try
+                    {
+                        Native.Load(Path.Combine(Application.dataPath, "Plugins", "x86_64", "opus.dll"));
+                        worker = new Worker(desired);
+                    }
+                    catch (Exception ex)
+                    {
+                        unavailable = true;
+                        Plugin.Log.LogWarning("[VOICE QUALITY] Guest recompression unavailable; preserving original packets: " + ex.Message);
+                    }
                 }
             }
-            if (desired > 0) Plugin.Log.LogInfo("[VOICE QUALITY] " + Plugin.VoicePercentage + "%: host mic " + desired + "bps; guest relay " + (Recompress ? "background recompression" : "original packets") + ".");
+            bool hasCompression = worker != null;
+            appliedPreview = hasCompression && Plugin.CompressHostListening;
+            if (applied > 0 && desired > 0 && hadCompression != hasCompression) VoiceRoster.ResetGuestQuality();
+            if (desired > 0 && (wasPreview != appliedPreview || (hadCompression != hasCompression && (wasPreview || appliedPreview)))) VoiceRoster.ResetHostQuality();
+            applied = desired;
+            inputBytes = outputBytes = 0; reencodedFrames = fallbackFrames = 0;
+            nextStatistics = Time.unscaledTime + 10f;
+            if (desired > 0) Plugin.Log.LogInfo("[VOICE QUALITY] Guest target " + Plugin.VoicePercentage + "% (" + desired + "bps); relay " + (Recompress ? "background recompression" : "original packets") + "; host preview=" + appliedPreview + ".");
         }
         if (worker == null) return;
         while (worker.Errors.TryDequeue(out var error))
             if (Time.unscaledTime >= nextWarning) { nextWarning = Time.unscaledTime + 10f; Plugin.Log.LogWarning("[VOICE QUALITY] " + error); }
-        while (worker.Completed.TryDequeue(out var job)) VoiceRoster.FinishQuality(job);
+        while (worker.Completed.TryDequeue(out var job))
+        {
+            inputBytes += job.AudioLength;
+            outputBytes += job.Reencoded ? job.OutputAudioLength : job.AudioLength;
+            if (job.Reencoded) reencodedFrames++; else fallbackFrames++;
+            VoiceRoster.FinishQuality(job);
+        }
+        if (Time.unscaledTime >= nextStatistics && reencodedFrames + fallbackFrames > 0)
+        {
+            nextStatistics = Time.unscaledTime + 10f;
+            Plugin.Log.LogInfo("[VOICE QUALITY] Payload bytes " + inputBytes + " -> " + outputBytes + "; reencoded=" + reencodedFrames + ", original fallbacks=" + fallbackFrames + ", host preview=" + appliedPreview + ".");
+            inputBytes = outputBytes = 0; reencodedFrames = fallbackFrames = 0;
+        }
     }
 
     internal static bool Submit(Job job)
@@ -80,35 +109,49 @@ internal static class RelayQuality
 
     internal static void Reset()
     {
-        worker?.Stop(); worker = null; applied = 0; hosting = false; unavailable = false;
+        worker?.Stop(); worker = null; applied = 0; hosting = false; unavailable = false; appliedPreview = false;
     }
 
-    static readonly object microphoneGate = new();
     static Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder microphone;
     static IntPtr appliedMicrophone;
     static int originalMicBitrate, lastMicBitrate;
     static int microphoneWarning;
-    internal static void RegisterMicrophone(Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder encoder, ref int bitrate)
-    {
-        lock (microphoneGate)
-        {
-            if (microphone?.Pointer != encoder.Pointer) { microphone = encoder; originalMicBitrate = bitrate; }
-            if (hosting) bitrate = Volatile.Read(ref microphoneBitrate);
-        }
-    }
+    static float nextMicrophoneScan;
     static void ApplyMicrophone()
     {
-        Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder encoder;
-        int original;
-        lock (microphoneGate) { encoder = microphone; original = originalMicBitrate; }
-        if (encoder == null) return;
-        int desired = hosting ? Volatile.Read(ref microphoneBitrate) : original;
-        if (appliedMicrophone == encoder.Pointer && lastMicBitrate == desired) return;
         try
         {
+            int desired = hosting ? Volatile.Read(ref microphoneBitrate) : originalMicBitrate;
+            bool changed = desired != lastMicBitrate;
+            if (hosting && (changed || Time.unscaledTime >= nextMicrophoneScan))
+            {
+                nextMicrophoneScan = Time.unscaledTime + .5f;
+                var capture = VoiceRoster.CaptureComms?._capture?._encoder?._encoder;
+                if (capture != null)
+                {
+                    var locked = capture.Lock();
+                    try
+                    {
+                        var found = locked.Value?.TryCast<Dissonance.Audio.Codecs.Opus.OpusEncoder>()?._encoder;
+                        if (found != null && !found._disposed && microphone?.Pointer != found.Pointer)
+                        {
+                            microphone = found; originalMicBitrate = found.Bitrate;
+                            appliedMicrophone = IntPtr.Zero;
+                        }
+                    }
+                    finally { locked.Dispose(); }
+                }
+            }
+            var encoder = microphone;
+            if (encoder == null) return;
             if (encoder._disposed) return;
+            desired = hosting ? Volatile.Read(ref microphoneBitrate) : originalMicBitrate;
+            if (appliedMicrophone == encoder.Pointer && lastMicBitrate == desired && encoder.Bitrate == desired) return;
             if (encoder.Bitrate != desired) encoder.Bitrate = desired;
+            int actual = encoder.Bitrate;
+            if (actual != desired) throw new InvalidOperationException("Encoder reported " + actual + "bps instead of " + desired + ".");
             appliedMicrophone = encoder.Pointer; lastMicBitrate = desired;
+            Plugin.Log.LogInfo("[VOICE QUALITY] Host microphone encoder confirmed " + actual + "bps.");
         }
         catch (Exception ex)
         {
@@ -124,13 +167,14 @@ internal static class RelayQuality
         internal readonly ConcurrentQueue<string> Errors = new();
         readonly Dictionary<(string, IntPtr), Stream> streams = new();
         readonly HashSet<(string, IntPtr)> unsupported = new();
-        readonly int bitrate;
+        int bitrate;
         volatile bool stopped;
         internal Worker(int bitrate)
         {
             this.bitrate = bitrate;
             new Thread(Run) { IsBackground = true, Name = "Big Lobbies voice quality" }.Start();
         }
+        internal void SetBitrate(int value) => Volatile.Write(ref bitrate, value);
         internal void Stop()
         {
             stopped = true;
@@ -149,7 +193,7 @@ internal static class RelayQuality
                     try
                     {
                         if (!streams.TryGetValue(key, out var stream)) streams[key] = stream = new Stream(job, bitrate);
-                        if (stream.Encode(job)) Completed.Enqueue(job);
+                        if (stream.Encode(job, Volatile.Read(ref bitrate))) Completed.Enqueue(job);
                     }
                     catch (Exception ex)
                     {
@@ -186,6 +230,7 @@ internal static class RelayQuality
         ushort sequence;
         byte channelSession;
         bool started;
+        int appliedBitrate;
         internal long LastUsed;
         internal Stream(Job job, int bitrate)
         {
@@ -199,12 +244,14 @@ internal static class RelayQuality
                 encoder = Native.CreateEncoder(rate, 1, 2048, out error);
                 if (encoder == IntPtr.Zero || error != 0) throw new InvalidOperationException("Opus encoder: " + error);
                 Check(Native.EncoderCtl(encoder, 4002, bitrate));
+                appliedBitrate = bitrate;
                 Check(Native.EncoderCtl(encoder, 4012, job.Fec ? 1 : 0));
             }
             catch { Dispose(); throw; }
         }
-        internal unsafe bool Encode(Job job)
+        internal unsafe bool Encode(Job job, int bitrate)
         {
+            if (bitrate != appliedBitrate) { Check(Native.EncoderCtl(encoder, 4002, bitrate)); appliedBitrate = bitrate; }
             if (job.Rate != rate || job.Samples != samples || job.AudioOffset < 2 || job.AudioLength < 1 ||
                 job.AudioOffset > job.Data.Length - job.AudioLength || job.AudioOffset + job.AudioLength != job.Data.Length)
                 throw new InvalidOperationException("Voice payload layout changed.");
@@ -238,7 +285,8 @@ internal static class RelayQuality
                 Buffer.BlockCopy(job.Data, 0, packet, 0, job.AudioOffset);
                 packet[lengthOffset] = (byte)(count >> 8); packet[lengthOffset + 1] = (byte)count;
                 Buffer.BlockCopy(encoded, 0, packet, job.AudioOffset, count);
-                job.Data = packet; sequence = job.Sequence; channelSession = job.ChannelSession; started = true; LastUsed = job.Submitted;
+                job.Data = packet; job.Reencoded = true; job.OutputAudioLength = count;
+                sequence = job.Sequence; channelSession = job.ChannelSession; started = true; LastUsed = job.Submitted;
                 return true;
             }
         }

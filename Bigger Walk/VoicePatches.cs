@@ -27,7 +27,6 @@ internal static class VoicePatches
             Patch(typeof(PlayerVoicePlaybackControl), "OnDisable", nameof(PlaybackDisabling), nameof(PlaybackDisabled));
             Patch(typeof(GlobalAudioEffects), "Update", null, nameof(AudioEffectsUpdated));
             Patch(typeof(RadioVoiceAssigner), "Peck", nameof(RadioUse), nameof(RadioUsed));
-            Patch(typeof(Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder), "set_Bitrate", nameof(MicrophoneBitrate));
             ClassInjector.RegisterTypeInIl2Cpp<VoicePump>();
             Ready = true;
         }
@@ -73,7 +72,6 @@ internal static class VoicePatches
         catch (Exception error) { VoiceRoster.Report("server update", error); }
     }
     static void Disconnect() => VoiceRoster.Reset();
-    static void MicrophoneBitrate(Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder __instance, ref int __0) => RelayQuality.RegisterMicrophone(__instance, ref __0);
     static bool TakeCue(PlayerVoicePlaybackControl __instance, ref bool __result)
     {
         if (!HostPlayback.TryTake(__instance)) return true;
