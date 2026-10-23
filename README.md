@@ -50,6 +50,10 @@
 
 
 
+#### Voice Quality: 100% (Normal) by default, targeting 17 kbps. Presets are 100%, 85%, 70%, 55% and 40%. Lower values recompress guest voices on the host, reducing outgoing voice data at the cost of quality and extra CPU work. 100% preserves original guest packets. FEC settings and audio frame duration are unchanged.
+
+
+
 #### Update Cap Hz: Normal by default. Movement will look less smooth the lower it is, Can improve network traffic and ping.
 
 
@@ -102,7 +106,7 @@
 
 
 
-#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/b6aa5d5746f9d292a601dafa253e0b0a59e6cb55
+#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/415c4c3daa9614987aadc90df6d36b63055017c1
 
 
 
