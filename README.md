@@ -18,7 +18,7 @@
 
 
 
-#### Host bigger lobbies! Defaults to 50 players, adjustable up to 100 through Mod Settings.
+#### Host bigger lobbies! Defaults to 25 players, adjustable up to 100 through Mod Settings.
 
 
 
@@ -26,11 +26,11 @@
 
 
 
-#### Change player limit, hearing distance and network update cap while playing!
+#### Change player limit, voice quality, hearing distance and network update cap while playing!
 
 
 
-#### Can (in theory) reduce network traffic even in lobbies with less than 13 players!
+#### Can (in theory) slightly reduce network traffic even in lobbies with less than 13 players!
 
 
 
@@ -42,27 +42,27 @@
 
 
 
-#### MaxPlayerCount: 50 by default.
+#### MaxPlayerCount: 25 by default with a 1-100 range.
 
 
 
-#### QuietThreshold: 0.004 by default. Quiet speakers lose priority only when a listener's voice slots are full.
+#### QuietThreshold: 0.004 by default with a 0.0001-0.05 range. Quiet speakers lose priority only when a listener's voice slots are full.
 
 
 
-#### Voice Quality: A live 15-100% slider, defaulting to 100% (17 kbps). Lower values recompress guest voices on the host using extra CPU. 100% preserves original guest packets. FEC settings and audio frame duration are unchanged.
+#### Host Voice Quality: 100% by default with a 15%-100% range. Reduces your voice's quality for everyone in your lobby. (Lower values can reduce outgoing network traffic)
 
 
 
-#### Host Voice Quality: A separate live 15-100% slider under Voice for your own transmitted voice. 100% targets 17 kbps; it is independent of guest Voice Quality.
+#### Voice Quality: 100% by default with a 15%-100% range. Reduces voice quality for guests talking to other guests. (Lower values can reduce outgoing network traffic)
 
 
 
-#### Update Cap Hz: Normal by default. Cycles 5, 10, 15, 20, 25, Normal, 25, 20, 15, 10, then back to 5 Hz. Lower values make movement less smooth but can reduce outgoing world-update traffic.
+#### Update Cap Hz: Normal (30hz) by default with a 5hz to 30hz range. Movement will look less smooth the lower it is. (Lower values can reduce outgoing network traffic)
 
 
 
-#### Hearing Distance: 30 metres by default, Can improve network traffic and ping.
+#### Hearing Distance: 30 metres by default with a 1m-30m range. (Lower values can reduce outgoing network traffic)
 
 
 
@@ -74,7 +74,15 @@
 
 
 
+#### The host will hear guests at the normal quality, Only other players will notice the lower voice quality. I recommend only touching network optimization if other players are experiencing lag or if you want to save on your internet plan.
+
+
+
 #### Bigger lobbies need more host upload bandwidth and processing power. Expect the game to crash at any moment, not only on your side, but even sometimes on other people's devices, more optimization will happen as feedback is given, You can adjust values for network optimization in the mod settings menu.
+
+
+
+#### This is not tested with any mods besides "Moderation Improvements". Do not expect all mods to work with this.
 
 
 
@@ -82,19 +90,15 @@
 
 
 
-#### Step 1: Install BepInEx 6 IL2CPP for Windows x64 from https://builds.bepinex.dev/projects/bepinex_be and extract it into the game directory. Launch the game once to finish setup, then close it.
+#### Step 1: Got BepInEx? Yes? Good! Go to step 2! No? Get it here: https://builds.bepinex.dev/projects/bepinex_be find the latest one with "IL2CPP" in the name, make sure it's the x64 version for your OS and extract to game directory (game local files) and give the game a quick launch and wait for a bit, When the game opens, close it and continue on to step 2!
 
 
 
-#### Step 2: Copy the BepInEx folder included with this mod into the game directory. The DLL is BepInEx/plugins/BigLobbies.dll. If updating from BiggerWalkAndTalk.dll, remove that old DLL first. Disable Bigger Walk and the old event version so only one lobby-capacity mod is loaded.
+#### Step 2: Just take the zip file, Throw it into the game directory, and unzip!
 
 
 
 #### Step 3: Host a game and invite your friends! Only the host needs this mod. Mod Settings Menu is optional.
-
-
-
-## Thank you for installing my mod!
 
 
 
@@ -110,7 +114,7 @@
 
 
 
-#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/582566503f865da1289f194c7fdfacdbe67372ae
+#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/4d240840db7bcbdf92aa3eebd69a3c253793092c
 
 
 
@@ -119,3 +123,7 @@
 
 
 #### Licensed under GNU GPL v3. See LICENSE and NOTICE. If you distribute this DLL, provide its corresponding modified source and build files under the same license.
+
+
+
+## Thank you for installing my mod!
