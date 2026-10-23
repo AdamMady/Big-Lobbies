@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Bigger_Walk;
 
-[BepInPlugin("AdamMady.BiggerWalkAndTalk", "Big Lobbies", MyPluginInfo.PLUGIN_VERSION)]
+[BepInPlugin("AdamMady.BigLobbies", "Big Lobbies", MyPluginInfo.PLUGIN_VERSION)]
 [BepInDependency("IceBoxStudio.BigWalk.ModSettingsMenu", BepInDependency.DependencyFlags.SoftDependency)]
 public class Plugin : BasePlugin
 {
@@ -34,6 +34,7 @@ public class Plugin : BasePlugin
     public override void Load()
     {
         Log = base.Log;
+        MigrateConfigFilename();
         MigrateVoiceConfig();
         
         MaxConnections = Config.Bind(
@@ -43,7 +44,7 @@ public class Plugin : BasePlugin
             new ConfigDescription("Maximum players. Applies to the current hosted lobby; lowering this does not kick existing players.", new AcceptableValueRange<int>(1, 100), SettingTags("General", 10, 10, 1d))
         );
 
-        harmony = new Harmony("AdamMady.BiggerWalkAndTalk");
+        harmony = new Harmony("AdamMady.BigLobbies");
         HarmonyPatches();
         try { EosCapacityPatch.Install(harmony); }
         catch (Exception ex) { Log.LogError("[CAPACITY] EOS SDK hook installation failed: " + ex); }
@@ -65,6 +66,22 @@ public class Plugin : BasePlugin
         VoicePatches.Install();
         AddComponent<VoicePump>();
         Log.LogInfo("Big Lobbies loaded. Live settings and native host hearing.");
+    }
+
+    private void MigrateConfigFilename()
+    {
+        string legacy = Path.Combine(Paths.ConfigPath, "AdamMady.BiggerWalkAndTalk.cfg");
+        if (!File.Exists(legacy)) return;
+        // BasePlugin can create a header-only file before Load; never replace saved settings.
+        if (File.Exists(Config.ConfigFilePath))
+            foreach (var line in File.ReadLines(Config.ConfigFilePath))
+            {
+                var text = line.Trim();
+                if (!text.StartsWith("#") && !text.StartsWith(";") && text.IndexOf('=') > 0) return;
+            }
+        File.Copy(legacy, Config.ConfigFilePath, true);
+        Config.Reload();
+        Log.LogInfo("Migrated saved settings to AdamMady.BigLobbies.cfg.");
     }
 
     private void MigrateVoiceConfig()
@@ -136,7 +153,7 @@ public class Plugin : BasePlugin
             optionsType.GetProperty("Name").SetValue(options, "Big Lobbies");
             optionsType.GetProperty("Author").SetValue(options, "AdamMady");
             optionsType.GetProperty("Version").SetValue(options, MyPluginInfo.PLUGIN_VERSION);
-            registry.GetMethod("Register", new[] { typeof(string), optionsType }).Invoke(null, new[] { (object)"AdamMady.BiggerWalkAndTalk", options });
+            registry.GetMethod("Register", new[] { typeof(string), optionsType }).Invoke(null, new[] { (object)"AdamMady.BigLobbies", options });
         }
         catch (Exception ex) { Log.LogWarning("Cannot register Mod Settings metadata: " + ex.GetBaseException().Message); }
     }

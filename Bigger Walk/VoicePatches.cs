@@ -14,7 +14,7 @@ internal static class VoicePatches
     static Harmony harmony;
     internal static void Install()
     {
-        harmony = new Harmony("AdamMady.BiggerWalkAndTalk.Voice");
+        harmony = new Harmony("AdamMady.BigLobbies.Voice");
         try
         {
             VoiceSendHook.Install();
