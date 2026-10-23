@@ -39,7 +39,7 @@ public class Plugin : BasePlugin
         MaxConnections = Config.Bind(
             "General",
             "MaxPlayerCount",
-            50,
+            25,
             new ConfigDescription("Maximum players. Applies to the current hosted lobby; lowering this does not kick existing players.", new AcceptableValueRange<int>(1, 100), SettingTags("General", 10, 10, 1d))
         );
 
