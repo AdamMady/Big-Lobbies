@@ -8,7 +8,7 @@ Original license: GNU General Public License v3.0 (see LICENSE).
 Modified by AdamMady. Standalone revision dated October 23, 2026.
 Changes include per-listener voice routing, additional host playback capacity,
 live configuration, network update caps, standalone Mod Settings metadata,
-optional background voice recompression, and host microphone bitrate presets.
+optional background voice recompression, and independent 15-100% voice quality sliders.
 This is a modified version, not the original Bigger Walk release.
 
 The modified work is distributed under GNU GPL v3.0. Keep the original license
