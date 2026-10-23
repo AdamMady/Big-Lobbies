@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Threading;
 using BepInEx;
@@ -20,36 +22,11 @@ public class Plugin : BasePlugin
     private Harmony harmony;
     internal static ConfigEntry<int> MaxConnections;
     internal static ConfigEntry<float> QuietThreshold;
-    internal static ConfigEntry<string> VoiceQuality;
+    internal static ConfigEntry<int> VoiceQuality;
     internal static ConfigEntry<int> HostVoiceQuality;
-#if QUALITY_TESTING
-    internal static ConfigEntry<string> QualityMode;
-    internal static ConfigEntry<int> ManualQuality;
-    internal static ConfigEntry<bool> PreviewHostQuality;
-#endif
-    internal static bool CompressHostListening
-    {
-        get
-        {
-#if QUALITY_TESTING
-            return PreviewHostQuality.Value;
-#else
-            return false;
-#endif
-        }
-    }
-    internal static int VoicePercentage
-    {
-        get
-        {
-#if QUALITY_TESTING
-            if (QualityMode.Value == "Manual") return ManualQuality.Value;
-#endif
-            return VoiceQuality.Value switch { "40%" => 40, "55%" => 55, "70%" => 70, "85%" => 85, _ => 100 };
-        }
-    }
-    internal static int VoiceBitrate => Math.Max(500, 17000 * VoicePercentage / 100);
-    internal static int HostVoiceBitrate => Math.Max(500, 17000 * HostVoiceQuality.Value / 100);
+    internal static int VoicePercentage => VoiceQuality.Value;
+    internal static int VoiceBitrate => 17000 * VoicePercentage / 100;
+    internal static int HostVoiceBitrate => 17000 * HostVoiceQuality.Value / 100;
     internal static ConfigEntry<string> UpdateCapHz;
     internal static int UpdateCapValue => int.TryParse(UpdateCapHz.Value.Replace(" Hz", ""), out var value) ? value : 0;
     internal static ConfigEntry<float> HearingDistance;
@@ -57,6 +34,7 @@ public class Plugin : BasePlugin
     public override void Load()
     {
         Log = base.Log;
+        MigrateVoiceConfig();
         
         MaxConnections = Config.Bind(
             "General",
@@ -71,29 +49,80 @@ public class Plugin : BasePlugin
         catch (Exception ex) { Log.LogError("[CAPACITY] EOS SDK hook installation failed: " + ex); }
         QuietThreshold = Config.Bind("Voice", "QuietThreshold", .004f,
             new ConfigDescription("Decoded amplitude below which an ordinary speaker loses priority ONLY when a listener's voice slots are full.", new AcceptableValueRange<float>(.0001f, .05f), SettingTags("Voice", 20, 10, .0001d)));
-        HostVoiceQuality = Config.Bind("Voice", "Host Microphone Quality", 100,
-            new ConfigDescription("Your own transmitted microphone bitrate, independent of guest Voice Quality. 100% = 17 kbps. Changes live. 1-2% clamp to Opus's 500 bps minimum. Does not change volume, FEC settings or frame duration.", new AcceptableValueRange<int>(1, 100), SettingTags("Voice", 20, 20, 1d)));
-#if QUALITY_TESTING
-        QualityMode = Config.Bind("Wi-Fi Optimization", "Quality Mode", "Automatic",
-            new ConfigDescription("Testing only. Automatic uses the five Voice Quality presets; Manual uses Manual Voice Quality. These testing controls are not included in release builds.", new AcceptableValueList<string>("Automatic", "Manual"), SettingTags("Wi-Fi Optimization", 30, 1, 1d)));
-        ManualQuality = Config.Bind("Wi-Fi Optimization", "Manual Voice Quality", 100,
-            new ConfigDescription("Testing only, used in Manual mode. Percentage of 17 kbps. Opus has a 500 bps minimum, so 1-2% are clamped to 500 bps. Extreme values can be unintelligible. 100% preserves original guest packets.", new AcceptableValueRange<int>(1, 100), SettingTags("Wi-Fi Optimization", 30, 15, 1d)));
-        PreviewHostQuality = Config.Bind("Wi-Fi Optimization", "Compress Host Listening", true,
-            new ConfigDescription("Testing only. At guest quality below 100%, the host hears the same recompressed guest packets sent to other listeners. Normal hearing distance and item audio effects still apply. Release builds always keep original host listening.", null, SettingTags("Wi-Fi Optimization", 30, 18, 1d)));
-#endif
-        VoiceQuality = Config.Bind("Wi-Fi Optimization", "Voice Quality", "100% (Normal)",
-            new ConfigDescription("Guest relay quality: 100% preserves original packets; lower values recompress them on the host using extra CPU. Targets: 100%=17 kbps, 85%=14.45, 70%=11.9, 55%=9.35, 40%=6.8. Host Microphone Quality separately controls your own voice. Applies live; frame duration and FEC settings are unchanged.",
-                new AcceptableValueList<string>("40%", "55%", "70%", "85%", "100% (Normal)"), SettingTags("Wi-Fi Optimization", 30, 10, 1d)));
+        HostVoiceQuality = Config.Bind("Voice", "Host Voice Quality", 100,
+            new ConfigDescription("Your own transmitted voice bitrate, independent of guest Voice Quality. Percentage of 17 kbps, from 15% to 100%. Applies live. Does not change volume, FEC settings or frame duration.", new AcceptableValueRange<int>(15, 100), SettingTags("Voice", 20, 20, 1d)));
+        VoiceQuality = Config.Bind("Wi-Fi Optimization", "Voice Quality", 100,
+            new ConfigDescription("Guest relay bitrate as a percentage of 17 kbps, from 15% to 100%. 100% preserves original guest packets. Lower values recompress them on the host using extra CPU. Host listening remains original; Host Voice Quality separately controls your own voice. Applies live; frame duration and FEC settings are unchanged.",
+                new AcceptableValueRange<int>(15, 100), SettingTags("Wi-Fi Optimization", 30, 10, 1d)));
         UpdateCapHz = Config.Bind("Wi-Fi Optimization", "Update Cap Hz", "Normal",
             new ConfigDescription("Normal uses the game's original rate. Lower caps reduce upload traffic but make movement less smooth. Never exceeds the game's original rate. Voice packet rate is unchanged. Applies live.",
-                new AcceptableValueList<string>("5 Hz", "10 Hz", "15 Hz", "20 Hz", "25 Hz", "Normal"), SettingTags("Wi-Fi Optimization", 30, 20, 5d)));
+                new AcceptableValueList<string>("5 Hz", "10 Hz", "15 Hz", "20 Hz", "25 Hz", "Normal", "25 Hz", "20 Hz", "15 Hz", "10 Hz"), SettingTags("Wi-Fi Optimization", 30, 20, 5d)));
         HearingDistance = Config.Bind("Wi-Fi Optimization", "Hearing Distance", 30f,
             new ConfigDescription("Ordinary guest voice relay radius in metres. Does not amplify voices or change native host hearing. Active megaphones, walkie-talkies and radio stations keep their special routes. Applies live.", new AcceptableValueRange<float>(1f, 30f), SettingTags("Wi-Fi Optimization", 30, 30, 1d)));
         Config.SettingChanged += OnSettingChanged;
         RegisterSettingsMetadata();
+        Config.Save();
         VoicePatches.Install();
         AddComponent<VoicePump>();
         Log.LogInfo("Big Lobbies loaded. Live settings and native host hearing.");
+    }
+
+    private void MigrateVoiceConfig()
+    {
+        if (!File.Exists(Config.ConfigFilePath)) return;
+        var lines = File.ReadAllLines(Config.ConfigFilePath);
+        var values = new Dictionary<string, string>();
+        string section = "";
+        foreach (var line in lines)
+        {
+            var text = line.Trim();
+            if (text.StartsWith("[")) { section = text; continue; }
+            if (text.StartsWith("#") || text.StartsWith(";")) continue;
+            int equals = text.IndexOf('=');
+            if (equals > 0) values[section + ":" + text.Substring(0, equals).Trim()] = text.Substring(equals + 1).Trim();
+        }
+        values.TryGetValue("[Wi-Fi Optimization]:Voice Quality", out var oldQuality);
+        values.TryGetValue("[Wi-Fi Optimization]:Quality Mode", out var mode);
+        values.TryGetValue("[Wi-Fi Optimization]:Manual Voice Quality", out var manual);
+        values.TryGetValue("[Voice]:Host Microphone Quality", out var oldHost);
+        values.TryGetValue("[Wi-Fi Optimization]:Update Cap Hz", out var oldCap);
+        bool numeric = int.TryParse(oldQuality, out int quality);
+        bool legacy = mode != null || manual != null || oldHost != null || oldCap == "30 Hz" ||
+            values.ContainsKey("[Wi-Fi Optimization]:Compress Host Listening") || (oldQuality != null && !numeric);
+        if (!legacy) return;
+        if (!numeric)
+        {
+            quality = 100;
+            if (mode == "Manual" && int.TryParse(manual, out int percentage)) quality = percentage;
+            else if (oldQuality != null && int.TryParse(oldQuality.Split('%')[0], out percentage)) quality = percentage;
+        }
+        var updated = new List<string>();
+        section = "";
+        foreach (var line in lines)
+        {
+            var text = line.Trim();
+            if (text.StartsWith("[")) { section = text; updated.Add(line); continue; }
+            int equals = text.IndexOf('=');
+            if (equals > 0 && !text.StartsWith("#") && !text.StartsWith(";"))
+            {
+                string key = text.Substring(0, equals).Trim();
+                if (section == "[Wi-Fi Optimization]")
+                {
+                    if (key == "Quality Mode" || key == "Manual Voice Quality" || key == "Compress Host Listening") continue;
+                    if (key == "Voice Quality") { updated.Add("Voice Quality = " + Math.Clamp(quality, 15, 100)); continue; }
+                    if (key == "Update Cap Hz" && oldCap == "30 Hz") { updated.Add("Update Cap Hz = Normal"); continue; }
+                }
+                if (section == "[Voice]" && key == "Host Microphone Quality")
+                {
+                    if (!values.ContainsKey("[Voice]:Host Voice Quality")) updated.Add("Host Voice Quality = " + (int.TryParse(oldHost, out int host) ? Math.Clamp(host, 15, 100) : 100));
+                    continue;
+                }
+            }
+            updated.Add(line);
+        }
+        File.WriteAllLines(Config.ConfigFilePath, updated, new System.Text.UTF8Encoding(false));
+        Config.Reload();
+        Log.LogInfo("[VOICE QUALITY] Migrated legacy quality settings to percentage sliders.");
     }
 
     private static void RegisterSettingsMetadata()

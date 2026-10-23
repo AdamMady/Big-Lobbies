@@ -17,10 +17,6 @@
         <GameDir Condition="'$(GameDir)' == ''">$(BIG_WALK_GAME_DIR)</GameDir>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(QualityTesting)' == 'true'">
-        <DefineConstants>$(DefineConstants);QUALITY_TESTING</DefineConstants>
-    </PropertyGroup>
-
     <ItemGroup>
         <Reference Include="com.Epic.OnlineServices"><HintPath>$(GameDir)\BepInEx\interop\com.Epic.OnlineServices.dll</HintPath><Private>false</Private></Reference>
         <Reference Include="com.playeveryware.eos.core"><HintPath>$(GameDir)\BepInEx\interop\com.playeveryware.eos.core.dll</HintPath><Private>false</Private></Reference>

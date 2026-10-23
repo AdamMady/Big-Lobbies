@@ -604,20 +604,18 @@ internal static class VoiceRoster
         bool recompress = !local && RelayQuality.Recompress && source.Info.CodecSettings.Codec == Dissonance.Audio.Codecs.Codec.Opus;
         if (!local && RelayQuality.Recompress && !recompress && qualityFormatWarnings.Add(source.Name))
             Plugin.Log.LogWarning("[VOICE QUALITY] Preserving unsupported voice codec: " + source.Info.CodecSettings.Codec + ", rate=" + source.Info.CodecSettings.SampleRate + ", samples=" + source.Info.CodecSettings.FrameSize + ".");
-        bool previewHost = recompress && Plugin.CompressHostListening;
         Peer hostPeer = null;
         if (hostId.HasValue && sender != hostId.Value) peers.TryGetValue(hostId.Value, out hostPeer);
-        if (hostPeer != null && !previewHost) Send(hostPeer, packet, false);
+        if (hostPeer != null) Send(hostPeer, packet, false);
         if (recompress)
         {
             var job = new RelayQuality.Job { Source = sender, Name = source.Name, Connection = source.Connection?.Pointer ?? IntPtr.Zero,
                 Session = session, Data = copy, AudioOffset = audio.Offset - packet.Offset, AudioLength = audio.Count,
                 Sequence = sequence, ChannelSession = options.ChannelSession, Rate = source.Info.CodecSettings.SampleRate,
                 Samples = checked((int)source.Info.CodecSettings.FrameSize), Recipients = recipients.ToArray(), At = now,
-                Fec = Dissonance.Config.VoiceSettings.Instance.ForwardErrorCorrection, Loss = comms?.PacketLoss ?? 0f, PreviewHost = previewHost };
+                Fec = Dissonance.Config.VoiceSettings.Instance.ForwardErrorCorrection, Loss = comms?.PacketLoss ?? 0f };
             if (RelayQuality.Submit(job)) return true;
         }
-        if (hostPeer != null && previewHost) Send(hostPeer, packet, false);
         RelayToGuests(source, recipients, copy, now, packet);
         return true;
     }
@@ -641,7 +639,6 @@ internal static class VoiceRoster
             !peers.TryGetValue(job.Source, out var source) || source.Name != job.Name ||
             (source.Connection?.Pointer ?? IntPtr.Zero) != job.Connection || IsMuted(source)) return;
         var packet = new Segment(new Il2CppStructArray<byte>(job.Data));
-        if (job.PreviewHost && RelayQuality.HostPreview && hostId.HasValue && peers.TryGetValue(hostId.Value, out var hostPeer)) Send(hostPeer, packet, false);
         RelayToGuests(source, job.Recipients, job.Data, Time.unscaledTime, packet);
     }
 
@@ -658,16 +655,6 @@ internal static class VoiceRoster
         nextRefresh = 0;
     }
 
-    internal static void ResetHostQuality()
-    {
-        if (!hostId.HasValue || !peers.TryGetValue(hostId.Value, out var hostPeer)) return;
-        foreach (var source in peers.Values.ToArray())
-        {
-            if (source.Host || source.Info == null) continue;
-            SendRemove(hostPeer, source.Id);
-            SendState(hostPeer, source);
-        }
-    }
 
     internal static bool BeforeUse(RadioVoiceAssigner radio, PeckContext context)
     {

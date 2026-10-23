@@ -23,7 +23,7 @@ internal static class RelayQuality
         internal int AudioOffset, AudioLength, Rate, Samples;
         internal ushort[] Recipients;
         internal float At, Loss;
-        internal bool Fec, PreviewHost, Reencoded;
+        internal bool Fec, Reencoded;
         internal int OutputAudioLength;
         internal long Submitted;
     }
@@ -31,13 +31,11 @@ internal static class RelayQuality
     static int applied, microphoneBitrate = 17000;
     static volatile bool hosting;
     static bool unavailable;
-    static bool appliedPreview;
     static float nextWarning;
     static float nextStatistics;
     static long inputBytes, outputBytes;
     static int reencodedFrames, fallbackFrames;
     internal static bool Recompress => hosting && worker != null && !unavailable;
-    internal static bool HostPreview => appliedPreview;
 
     internal static void Tick()
     {
@@ -45,11 +43,9 @@ internal static class RelayQuality
         Volatile.Write(ref microphoneBitrate, Plugin.HostVoiceBitrate);
         ApplyMicrophone();
         int desired = hosting ? Plugin.VoiceBitrate : 0;
-        bool preview = hosting && Plugin.CompressHostListening && desired < 17000 && !unavailable;
-        if (desired != applied || preview != appliedPreview)
+        if (desired != applied)
         {
             bool hadCompression = worker != null;
-            bool wasPreview = appliedPreview;
             if (worker != null && desired > 0 && desired < 17000) worker.SetBitrate(desired);
             else
             {
@@ -69,13 +65,11 @@ internal static class RelayQuality
                 }
             }
             bool hasCompression = worker != null;
-            appliedPreview = hasCompression && Plugin.CompressHostListening;
             if (applied > 0 && desired > 0 && hadCompression != hasCompression) VoiceRoster.ResetGuestQuality();
-            if (desired > 0 && (wasPreview != appliedPreview || (hadCompression != hasCompression && (wasPreview || appliedPreview)))) VoiceRoster.ResetHostQuality();
             applied = desired;
             inputBytes = outputBytes = 0; reencodedFrames = fallbackFrames = 0;
             nextStatistics = Time.unscaledTime + 10f;
-            if (desired > 0) Plugin.Log.LogInfo("[VOICE QUALITY] Guest target " + Plugin.VoicePercentage + "% (" + desired + "bps); relay " + (Recompress ? "background recompression" : "original packets") + "; host preview=" + appliedPreview + ".");
+            if (desired > 0) Plugin.Log.LogInfo("[VOICE QUALITY] Guest target " + Plugin.VoicePercentage + "% (" + desired + "bps); relay " + (Recompress ? "background recompression" : "original packets") + ".");
         }
         if (worker == null) return;
         while (worker.Errors.TryDequeue(out var error))
@@ -90,7 +84,7 @@ internal static class RelayQuality
         if (Time.unscaledTime >= nextStatistics && reencodedFrames + fallbackFrames > 0)
         {
             nextStatistics = Time.unscaledTime + 10f;
-            Plugin.Log.LogInfo("[VOICE QUALITY] Payload bytes " + inputBytes + " -> " + outputBytes + "; reencoded=" + reencodedFrames + ", original fallbacks=" + fallbackFrames + ", host preview=" + appliedPreview + ".");
+            Plugin.Log.LogDebug("[VOICE QUALITY] Payload bytes " + inputBytes + " -> " + outputBytes + "; reencoded=" + reencodedFrames + ", original fallbacks=" + fallbackFrames + ".");
             inputBytes = outputBytes = 0; reencodedFrames = fallbackFrames = 0;
         }
     }
@@ -109,7 +103,7 @@ internal static class RelayQuality
 
     internal static void Reset()
     {
-        worker?.Stop(); worker = null; applied = 0; hosting = false; unavailable = false; appliedPreview = false;
+        worker?.Stop(); worker = null; applied = 0; hosting = false; unavailable = false;
     }
 
     static Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder microphone;
