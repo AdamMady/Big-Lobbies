@@ -21,7 +21,21 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<int> MaxConnections;
     internal static ConfigEntry<float> QuietThreshold;
     internal static ConfigEntry<string> VoiceQuality;
-    internal static int VoiceBitrate => VoiceQuality.Value switch { "Very Low" => 6000, "Low" => 10000, "High" => 24000, "Very High" => 32000, _ => 17000 };
+#if QUALITY_TESTING
+    internal static ConfigEntry<string> QualityMode;
+    internal static ConfigEntry<int> ManualQuality;
+#endif
+    internal static int VoicePercentage
+    {
+        get
+        {
+#if QUALITY_TESTING
+            if (QualityMode.Value == "Manual") return ManualQuality.Value;
+#endif
+            return VoiceQuality.Value switch { "40%" => 40, "55%" => 55, "70%" => 70, "85%" => 85, _ => 100 };
+        }
+    }
+    internal static int VoiceBitrate => Math.Max(500, 17000 * VoicePercentage / 100);
     internal static ConfigEntry<string> UpdateCapHz;
     internal static int UpdateCapValue => int.TryParse(UpdateCapHz.Value.Replace(" Hz", ""), out var value) ? value : 0;
     internal static ConfigEntry<float> HearingDistance;
@@ -43,9 +57,15 @@ public class Plugin : BasePlugin
         catch (Exception ex) { Log.LogError("[CAPACITY] EOS SDK hook installation failed: " + ex); }
         QuietThreshold = Config.Bind("Voice", "QuietThreshold", .004f,
             new ConfigDescription("Decoded amplitude below which an ordinary speaker loses priority ONLY when a listener's voice slots are full.", new AcceptableValueRange<float>(.0001f, .05f), SettingTags("Voice", 20, 10, .0001d)));
-        VoiceQuality = Config.Bind("Wi-Fi Optimization", "Voice Quality", "Medium",
-            new ConfigDescription("Very Low: 6 kbps; Low: 10; Medium: 17; High: 24; Very High: 32. Changes the host microphone bitrate. Very Low/Low also recompress guest voices before relaying, using extra host CPU. Medium and above preserve guest packets; higher settings cannot improve a guest's original recording. Frame duration and FEC settings are unchanged.",
-                new AcceptableValueList<string>("Very Low", "Low", "Medium", "High", "Very High"), SettingTags("Wi-Fi Optimization", 30, 10, 1d)));
+#if QUALITY_TESTING
+        QualityMode = Config.Bind("Wi-Fi Optimization", "Quality Mode", "Automatic",
+            new ConfigDescription("Testing only. Automatic uses the five Voice Quality presets; Manual uses Manual Voice Quality. These testing controls are not included in release builds.", new AcceptableValueList<string>("Automatic", "Manual"), SettingTags("Wi-Fi Optimization", 30, 1, 1d)));
+        ManualQuality = Config.Bind("Wi-Fi Optimization", "Manual Voice Quality", 100,
+            new ConfigDescription("Testing only, used in Manual mode. Percentage of 17 kbps. Opus has a 500 bps minimum, so 1-2% are clamped to 500 bps. Extreme values can be unintelligible. 100% preserves original guest packets.", new AcceptableValueRange<int>(1, 100), SettingTags("Wi-Fi Optimization", 30, 15, 1d)));
+#endif
+        VoiceQuality = Config.Bind("Wi-Fi Optimization", "Voice Quality", "100% (Normal)",
+            new ConfigDescription("100% = 17 kbps, 85% = 14.45, 70% = 11.9, 55% = 9.35, 40% = 6.8. 100% preserves original guest packets. Lower values recompress guest voices on the host using extra CPU. Applies live. Frame duration and FEC settings are unchanged.",
+                new AcceptableValueList<string>("40%", "55%", "70%", "85%", "100% (Normal)"), SettingTags("Wi-Fi Optimization", 30, 10, 1d)));
         UpdateCapHz = Config.Bind("Wi-Fi Optimization", "Update Cap Hz", "Normal",
             new ConfigDescription("Normal uses the game's original rate. Lower caps reduce upload traffic but make movement less smooth. Never exceeds the game's original rate. Voice packet rate is unchanged. Applies live.",
                 new AcceptableValueList<string>("5 Hz", "10 Hz", "15 Hz", "20 Hz", "25 Hz", "30 Hz", "Normal"), SettingTags("Wi-Fi Optimization", 30, 20, 5d)));

@@ -37,6 +37,7 @@ internal static class RelayQuality
     {
         hosting = VoiceRoster.Enabled;
         Volatile.Write(ref microphoneBitrate, Plugin.VoiceBitrate);
+        ApplyMicrophone();
         int desired = hosting ? Plugin.VoiceBitrate : 0;
         if (desired != applied)
         {
@@ -57,7 +58,7 @@ internal static class RelayQuality
                     Plugin.Log.LogWarning("[VOICE QUALITY] Guest recompression unavailable; preserving original packets: " + ex.Message);
                 }
             }
-            if (desired > 0) Plugin.Log.LogInfo("[VOICE QUALITY] " + Plugin.VoiceQuality.Value + ": host mic " + desired + "bps; guest relay " + (Recompress ? "background recompression" : "original packets") + ".");
+            if (desired > 0) Plugin.Log.LogInfo("[VOICE QUALITY] " + Plugin.VoicePercentage + "%: host mic " + desired + "bps; guest relay " + (Recompress ? "background recompression" : "original packets") + ".");
         }
         if (worker == null) return;
         while (worker.Errors.TryDequeue(out var error))
@@ -72,7 +73,7 @@ internal static class RelayQuality
         if (!worker.Input.TryAdd(job) && Time.unscaledTime >= nextWarning)
         {
             nextWarning = Time.unscaledTime + 10f;
-            Plugin.Log.LogWarning("[VOICE QUALITY] Encoder queue full; dropping voice instead of building latency. Raise quality to Medium to disable guest recompression.");
+            Plugin.Log.LogWarning("[VOICE QUALITY] Encoder queue full; dropping voice instead of building latency. Set quality to 100% to disable guest recompression.");
         }
         return true;
     }
@@ -82,24 +83,32 @@ internal static class RelayQuality
         worker?.Stop(); worker = null; applied = 0; hosting = false; unavailable = false;
     }
 
-    static IntPtr micPointer;
+    static readonly object microphoneGate = new();
+    static Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder microphone;
+    static IntPtr appliedMicrophone;
     static int originalMicBitrate, lastMicBitrate;
     static int microphoneWarning;
-    static bool changedMic;
-    internal static void ConfigureMicrophone(Dissonance.Audio.Codecs.Opus.OpusEncoder encoder)
+    internal static void RegisterMicrophone(Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder encoder, ref int bitrate)
     {
-        if (!hosting && !changedMic) return;
+        lock (microphoneGate)
+        {
+            if (microphone?.Pointer != encoder.Pointer) { microphone = encoder; originalMicBitrate = bitrate; }
+            if (hosting) bitrate = Volatile.Read(ref microphoneBitrate);
+        }
+    }
+    static void ApplyMicrophone()
+    {
+        Dissonance.Audio.Codecs.Opus.OpusNative.OpusEncoder encoder;
+        int original;
+        lock (microphoneGate) { encoder = microphone; original = originalMicBitrate; }
+        if (encoder == null) return;
+        int desired = hosting ? Volatile.Read(ref microphoneBitrate) : original;
+        if (appliedMicrophone == encoder.Pointer && lastMicBitrate == desired) return;
         try
         {
-            var native = encoder?._encoder;
-            if (native == null) return;
-            if (micPointer != native.Pointer)
-            {
-                micPointer = native.Pointer; originalMicBitrate = lastMicBitrate = native.Bitrate; changedMic = false;
-            }
-            int desired = hosting ? Volatile.Read(ref microphoneBitrate) : originalMicBitrate;
-            if (desired != lastMicBitrate) { native.Bitrate = desired; lastMicBitrate = desired; }
-            changedMic = hosting && desired != originalMicBitrate;
+            if (encoder._disposed) return;
+            if (encoder.Bitrate != desired) encoder.Bitrate = desired;
+            appliedMicrophone = encoder.Pointer; lastMicBitrate = desired;
         }
         catch (Exception ex)
         {
