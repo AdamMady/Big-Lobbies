@@ -50,15 +50,15 @@
 
 
 
-#### Voice Quality: 100% (Normal) by default, targeting 17 kbps. Presets are 100%, 85%, 70%, 55% and 40%. Lower values recompress guest voices on the host using extra CPU. 100% preserves original guest packets. FEC settings and audio frame duration are unchanged.
+#### Voice Quality: A live 15-100% slider, defaulting to 100% (17 kbps). Lower values recompress guest voices on the host using extra CPU. 100% preserves original guest packets. FEC settings and audio frame duration are unchanged.
 
 
 
-#### Host Microphone Quality: A separate live 1-100% slider under Voice for your own transmitted microphone. 100% targets 17 kbps; it is independent of guest Voice Quality.
+#### Host Voice Quality: A separate live 15-100% slider under Voice for your own transmitted voice. 100% targets 17 kbps; it is independent of guest Voice Quality.
 
 
 
-#### Update Cap Hz: Normal by default. Movement will look less smooth the lower it is, Can improve network traffic and ping.
+#### Update Cap Hz: Normal by default. Cycles 5, 10, 15, 20, 25, Normal, 25, 20, 15, 10, then back to 5 Hz. Lower values make movement less smooth but can reduce outgoing world-update traffic.
 
 
 
@@ -110,7 +110,7 @@
 
 
 
-#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/f834290d571c4d77dd556de103b0d800e486068c
+#### Source matching version 1.0.0: https://github.com/AdamMady/Big-Lobbies/tree/582566503f865da1289f194c7fdfacdbe67372ae
 
 
 
